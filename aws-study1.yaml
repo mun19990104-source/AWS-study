@@ -20,8 +20,7 @@ Parameters:
     Description: t3.micro
   SSHCidr:
     Type: String
-    Default: 192.168.0.0/32
-    Description: "SSHアクセスを許可するCIDR"
+    Description: "自身のグローバルIP を /32 で指定（例 203.0.113.5/32）。0.0.0.0/0 は絶対に使わないでください。"
 
 Resources:
   vpc:
