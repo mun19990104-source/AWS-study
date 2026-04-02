@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2test
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: aws-test
+  AMIId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: ami-088b486f20fab3f0e
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+    Description: t3.micro
+  SSHCidr:
+    Type: String
+    AllowedPattern: '^(([0-9]{1,3}\.){3}[0-9]{1,3})\/([0-9]|[1-2][0-9]|3[0-2])$'
+    Description: "自身のグローバルIP を /32 で指定（例 203.0.113.5/32）。0.0.0.0/0 は絶対に使わないでください。"
+    ConstraintDescription: "CIDR形式で入力してください（例：133.106.33.216/32）"
+
+Resources:
+  vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: KeyName
+          Value: value
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  routeTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: KeyName
+          Value: value
+
+  route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  subnetrouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnet
+      RouteTableId: !Ref routeTable
+
+  subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+  
+  securityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH and HTTP
+      VpcId: !Ref vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHCidr
+        - IpProtocol: tcp
+          FromPort: 80          
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMIId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref securityGroup
+      SubnetId: !Ref subnet
+      Tags:
+        - Key: Name
+          Value: MyEC2Instance
+
