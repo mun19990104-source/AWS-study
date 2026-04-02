@@ -147,6 +147,8 @@ Resources:
       Type: network
       Subnets:
         - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Scheme: internet-facing
       Tags:
         - Key: Name
           Value: MyNLB
@@ -161,10 +163,16 @@ Resources:
       TargetType: instance
       Targets:
         - Id: !Ref ec2Instance
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: '80'
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
       Tags:
         - Key: Name
           Value: MyNLBTargetGroup
-
+          
   NLBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -219,17 +227,3 @@ Resources:
         - Key: Name
           Value: MyRDSInstance
 
-  VPCSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: RDS traffic
-      VpcId: !Ref vpc
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: !Ref SSHCidr
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref SSHCidr
