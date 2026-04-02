@@ -163,7 +163,7 @@ Resources:
       TargetType: instance
       Targets:
         - Id: !Ref ec2Instance
-      HealthCheckProtocol: HTTP
+      HealthCheckProtocol: TCP
       HealthCheckPort: '80'
       HealthCheckPath: /
       HealthCheckIntervalSeconds: 30
