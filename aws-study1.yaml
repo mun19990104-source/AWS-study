@@ -164,7 +164,7 @@ Resources:
       Targets:
         - Id: !Ref ec2Instance
       HealthCheckProtocol: TCP
-      HealthCheckPort: '80'
+      HealthCheckPort: traffic-port
       Tags:
         - Key: Name
           Value: MyNLBTargetGroup
