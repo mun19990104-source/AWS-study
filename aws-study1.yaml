@@ -165,10 +165,6 @@ Resources:
         - Id: !Ref ec2Instance
       HealthCheckProtocol: TCP
       HealthCheckPort: '80'
-      HealthCheckPath: /
-      HealthCheckIntervalSeconds: 30
-      HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 3
       Tags:
         - Key: Name
           Value: MyNLBTargetGroup
