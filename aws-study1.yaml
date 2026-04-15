@@ -140,44 +140,66 @@ Resources:
         - Key: Name
           Value: MyEC2Instance
 
-  NLB:
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP to ALB
+      VpcId: !Ref vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ALBSecurityGroup
+
+  ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: MyNLB
-      Type: network
+      Name: MyALB
+      Type: application
       Subnets:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
       Scheme: internet-facing
       Tags:
         - Key: Name
-          Value: MyNLB
+          Value: MyALB
 
-  NLBTargetGroup:
+  ALBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: MyNLBTargetGroup
+      Name: MyALBTargetGroup
       Port: 80
-      Protocol: TCP
+      Protocol: HTTP
       VpcId: !Ref vpc
       TargetType: instance
       Targets:
         - Id: !Ref ec2Instance
-      HealthCheckProtocol: TCP
+      HealthCheckProtocol: HTTP
       HealthCheckPort: traffic-port
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
       Tags:
         - Key: Name
-          Value: MyNLBTargetGroup
+          Value: MyALBTargetGroup
           
-  NLBListener:
+
+  ALBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
-      LoadBalancerArn: !Ref NLB
+      LoadBalancerArn: !Ref ALB
       Port: 80
-      Protocol: TCP
+      Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref NLBTargetGroup
+          TargetGroupArn: !Ref ALBTargetGroup
 
 
   DBSubnetGroup:
@@ -223,3 +245,75 @@ Resources:
         - Key: Name
           Value: MyRDSInstance
 
+  EC2CPUUTilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "AWS EC2のCPU使用率が2%を超えた場合にアラームを発生させる。"
+      AlarmName: AWS-study-EC2CPUUtilizationAlarm
+
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref ec2Instance
+      Unit: Percent
+
+      Statistic: Average
+      Period: 60
+
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      TreatMissingData: "missing"
+      Threshold: 2
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+
+      ActionsEnabled: true
+      AlarmActions:
+        - arn:aws:sns:ap-northeast-1:982604770689:AWS-study
+
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub '${AWS::StackName}-web-acl'
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${AWS::StackName}-web-acl-metric'
+      Rules:
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSetMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+
+  WAFLogConfig:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      LogDestinationConfigs:
+        - !GetAtt WAFLogGroup.Arn
+      ResourceArn: !GetAtt WAFWebACL.Arn
+
+  WAFLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Sub aws-waf-logs-${AWS::StackName}-alb-acl
+      RetentionInDays: 365
+      Tags: 
+        - Key: Name
+          Value: !Sub aws-waf-logs-${AWS::StackName}-alb-acl
+
+  WAFWebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !GetAtt ALB.LoadBalancerArn
+      WebACLArn: !GetAtt WAFWebACL.Arn
