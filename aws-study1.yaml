@@ -128,9 +128,9 @@ Resources:
           ToPort: 22
           CidrIp: !Ref SSHCidr
         - IpProtocol: tcp
-          FromPort: 80          
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
 
   ec2Instance:
     Type: AWS::EC2::Instance
@@ -178,7 +178,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: MyALBTargetGroup
-      Port: 80
+      Port: 8080
       Protocol: HTTP
       VpcId: !Ref vpc
       TargetType: instance
@@ -331,5 +331,5 @@ Resources:
   WAFWebACLAssociation:
     Type: AWS::WAFv2::WebACLAssociation
     Properties:
-      ResourceArn: !Ref ALB
+      ResourceArn: !GetAtt ALB.LoadBalancerArn
       WebACLArn: !GetAtt WAFWebACL.Arn
